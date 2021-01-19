@@ -77,7 +77,7 @@ def main() :
     time_entries = r.json()
     f.write( r.text )
     f.close()
-    print( f"There are { len(time_entries['data']) } time logs found." )
+    print( f"There are { len(time_entries['data']) } time logs." )
 
 
   else:
@@ -109,6 +109,9 @@ def main() :
   time_entries_df = pd.DataFrame(time_entries_rows, columns=columns_time_entries)
 
   # print( time_entries_df )
+
+  print( f"Found in { len(tasks) } tasks." )
+
 
   # =====
   # iterate over the task ids
