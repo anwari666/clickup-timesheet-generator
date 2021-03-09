@@ -1,3 +1,5 @@
+from decouple import config
+import os
 import time
 import datetime
 import json
@@ -6,14 +8,14 @@ import pandas as pd
 import numpy as np
 
 
-team_id = 2155452
+TEAM_ID = config('team_id')
 
-anwari_id = 2440313
-raquel_id = 2440555
+ANWARI_ID = config('anwari_id')
+RAQUEL_ID = config('raquel_id')
 
 persons = {
-  '1': anwari_id,
-  '2': raquel_id
+  '1': ANWARI_ID,
+  '2': RAQUEL_ID
 }
 
 # dates in format YYYY-MM-DD
@@ -53,10 +55,10 @@ columns_time_entries = [  'task_id', 'task_name',
 api_endpoint = "https://api.clickup.com/api/v2/"
 
 
-api_time_entries = f"{api_endpoint}team/{team_id}/time_entries?start_date={start_ts}&end_date={end_ts}&assignee={persons[assignee]}"
+api_time_entries = f"{api_endpoint}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
 api_task = f"{api_endpoint}task/"
 
-API_KEY = "pk_2440313_HIA6COTHC9K46M7WXVW62K3Z9QUNAYTV"
+API_KEY = config('API_KEY')
 headers = {"Authorization": API_KEY }
 
 
@@ -179,8 +181,8 @@ def main() :
 
     # export to CSV
     # todo: export per person.
-    tasks_filename = f"{username} | tasks { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
-    tasks_group['hours'].sum().rename_axis(['Project', 'Task']).reset_index().to_csv(f"./{ tasks_filename }")
+    tasks_filename = f"{username} - tasks { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    tasks_group['hours'].sum().rename_axis(['Project', 'Task']).reset_index().to_csv(f"./report/{ tasks_filename }")
     print( f"\nThe detailed tasks have been saved to: { tasks_filename }" )
 
 
@@ -190,7 +192,7 @@ def main() :
 
     missing_str = [ 'test' for _ in range(len(missing_dates)) ]
     missing_num = [ 0 for _ in range(len(missing_dates)) ]
-    missing_empty = [ '' for _ in range(len(missing_dates)) ]
+    missing_empty = [ 0 for _ in range(len(missing_dates)) ]
 
     missing_df = pd.DataFrame({ 'task_id': missing_str, 'task_name': missing_str,
                             'time_id': missing_str, 'time_start': missing_dates, 'time_end': missing_dates, 'time_duration': missing_num, 
@@ -202,14 +204,19 @@ def main() :
 
     # kinda work but missing some dates
     # print( full_frame.tail(20) )
-    timesheet_df = pd.pivot_table(full_frame, index='list_name', columns='time_start', values='hours', aggfunc=np.sum, fill_value='')
-    timesheet_filename = f"{ username } | timesheet { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
-    timesheet_df.to_csv(f"./{ timesheet_filename }")
+    timesheet_df = pd.pivot_table(full_frame, index=['list_name'], margins=True, margins_name='Total', columns='time_start', values=['hours'], aggfunc=[np.sum], fill_value='')
+
+    timesheet_filename = f"{ username } - timesheet { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    # timesheet_df.loc['Total'] = timesheet_df.sum(numeric_only=True, axis=0)
+
+    timesheet_df.to_csv(f"./report/{ timesheet_filename }")
+    
     print( f"\n====== TIMESHEET ======" )
-    # print( timesheet_df )
+    print( timesheet_df )
     print( f"The timesheet is saved to: {timesheet_filename}" )
 
-# call the thingy woohoo
 
+
+# call the thingy woohoo
 if __name__ == "__main__":
   main()
