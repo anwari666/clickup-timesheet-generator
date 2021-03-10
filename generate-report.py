@@ -1,15 +1,14 @@
 from decouple import config
 import os
-import time
-import datetime
 import json
 import requests
 import pandas as pd 
 import numpy as np
 
+import utilities as util
+
 
 TEAM_ID = config('team_id')
-
 ANWARI_ID = config('anwari_id')
 RAQUEL_ID = config('raquel_id')
 
@@ -19,33 +18,14 @@ persons = {
 }
 
 # dates in format YYYY-MM-DD
-start = input("Start date in YYYY-MM-DD: ") # since early dec
-end = input("End date (defaults to today): ") # string or None
-assignee = input("Who?\n1: anwari \n2: raquel\n")
+start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
+end = input("Until when? (defaults to today): ") # string or None
+assignee = input("Generate whose report?\n  1: Anwari \n  2: Raquel\n  3: Tiago\nPick one: ")
 
 
-def get_end_date( ts_ms ):
-  return datetime.datetime.fromtimestamp( ts_ms/1000 ).strftime('%Y-%m-%d')
+start_ts = util.str_to_timestamp( start )
+end_ts = util.get_eod_timestamp( end )
 
-def get_end_tsm( s ) :
-  if s == '' :
-    # check for the end of day
-    return int( datetime.datetime.now().replace(hour=23, minute=59, second=59, microsecond=0).timestamp() * 1000) 
-  else :
-    return int( datetime.datetime.strptime( s, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=0).timestamp() * 1000 )
-
-def str_to_tsm( s ):
-  tt = datetime.datetime.strptime( s, '%Y-%m-%d').timetuple()
-  return int( time.mktime( tt ) ) * 1000
-
-def tsm_to_human( ts_ms ):
-  return datetime.datetime.fromtimestamp( ts_ms /1000 ).strftime('%b %d')
-
-
-start_ts = str_to_tsm( start )
-end_ts = get_end_tsm( end )
-
-# print(f"end: {end_ts}")
 
 columns_time_entries = [  'task_id', 'task_name',
                           'time_id', 'time_start', 'time_end', 'time_duration', 
@@ -181,21 +161,22 @@ def main() :
 
     # export to CSV
     # todo: export per person.
-    tasks_filename = f"{username} - tasks { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    tasks_filename = f"{username} - tasks { util.timestamp_to_human( start_ts ) } - { util.timestamp_to_human( end_ts) }.csv"
     tasks_group['hours'].sum().rename_axis(['Project', 'Task']).reset_index().to_csv(f"./report/{ tasks_filename }")
     print( f"\nThe detailed tasks have been saved to: { tasks_filename }" )
 
 
 
     # fill user_frame with missing dates
-    missing_dates = pd.date_range( start, get_end_date( end_ts) )
+    missing_dates = pd.date_range( start, util.get_end_date( end_ts) )
 
     missing_str = [ 'test' for _ in range(len(missing_dates)) ]
     missing_num = [ 0 for _ in range(len(missing_dates)) ]
     missing_empty = [ 0 for _ in range(len(missing_dates)) ]
 
     missing_df = pd.DataFrame({ 'task_id': missing_str, 'task_name': missing_str,
-                            'time_id': missing_str, 'time_start': missing_dates, 'time_end': missing_dates, 'time_duration': missing_num, 
+                            'time_id': missing_str, 'time_start': missing_dates, 
+                            'time_end': missing_dates, 'time_duration': missing_num, 
                             'list_id': missing_str, 'list_name': missing_empty,
                             'user_id': missing_str, 'user_name': missing_str, 'hours': missing_empty})
     
@@ -206,7 +187,7 @@ def main() :
     # print( full_frame.tail(20) )
     timesheet_df = pd.pivot_table(full_frame, index=['list_name'], margins=True, margins_name='Total', columns='time_start', values=['hours'], aggfunc=[np.sum], fill_value='')
 
-    timesheet_filename = f"{ username } - timesheet { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    timesheet_filename = f"{ username } - timesheet { util.timestamp_to_human( start_ts ) } - { util.timestamp_to_human( end_ts) }.csv"
     # timesheet_df.loc['Total'] = timesheet_df.sum(numeric_only=True, axis=0)
 
     timesheet_df.to_csv(f"./report/{ timesheet_filename }")
