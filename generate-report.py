@@ -7,24 +7,19 @@ import numpy as np
 
 import utilities as util
 
+API_ENDPOINT = config('API_ENDPOINT')
+API_KEY   = config('API_KEY')
 
-TEAM_ID = config('team_id')
-ANWARI_ID = config('anwari_id')
-RAQUEL_ID = config('raquel_id')
+TEAM_ID   = config('TEAM_ID')
+ANWARI_ID = config('ANWARI_ID')
+RAQUEL_ID = config('RAQUEL_ID')
+TIAGO_ID  = config('TIAGO_ID')
 
 persons = {
   '1': ANWARI_ID,
-  '2': RAQUEL_ID
+  '2': RAQUEL_ID,
+  '3': TIAGO_ID
 }
-
-# dates in format YYYY-MM-DD
-start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
-end = input("Until when? (defaults to today): ") # string or None
-assignee = input("Generate whose report?\n  1: Anwari \n  2: Raquel\n  3: Tiago\nPick one: ")
-
-
-start_ts = util.str_to_timestamp( start )
-end_ts = util.get_eod_timestamp( end )
 
 
 columns_time_entries = [  'task_id', 'task_name',
@@ -32,17 +27,22 @@ columns_time_entries = [  'task_id', 'task_name',
                           'user_id', 'user_name']
 
 
-api_endpoint = "https://api.clickup.com/api/v2/"
-
-
-api_time_entries = f"{api_endpoint}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
-api_task = f"{api_endpoint}task/"
-
-API_KEY = config('API_KEY')
-headers = {"Authorization": API_KEY }
-
 
 def main() :
+
+  # dates in format YYYY-MM-DD
+  start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
+  end = input("Until when? (defaults to today): ") # string or None
+  assignee = input("Generate whose report?\n  1: Anwari \n  2: Raquel\n  3: Tiago\nPick one: ")
+
+  start_ts = util.str_to_timestamp( start )
+  end_ts = util.get_eod_timestamp( end )
+
+  api_time_entries = f"{API_ENDPOINT}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
+  api_task = f"{API_ENDPOINT}task/"
+
+
+  headers = {"Authorization": API_KEY }
 
   try:
     # read time_entries from API
@@ -84,7 +84,8 @@ def main() :
 
     # append new row
     time_entries_rows.append([  time_entry['task']['id'], time_entry['task']['name'],
-                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
+                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), 
+                                pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
                                 time_entry['user']['id'], time_entry['user']['username'] ] )
 
   # create new dataframe
@@ -121,7 +122,6 @@ def main() :
   #   tasks_r_file.close()
 
 
-
   # create lists dataframe
   lists_df = pd.DataFrame([ [ tasks[task]['list']['id'],
                               tasks[task]['list']['name'], 
@@ -140,7 +140,7 @@ def main() :
   for username, user_frame in grouped_by_user :
 
 
-    # --> INSERT SCRIPT u/ DIVIDE BETWEEN USERS HERE <--
+    # --> INSERT SCRIPT to DIVIDE BETWEEN USERS HERE <--
     total_time = user_frame['time_duration'].sum()
     total_hour = total_time / (3600*1000)
     ten_percent = total_time * 0.1
@@ -198,6 +198,6 @@ def main() :
 
 
 
-# call the thingy woohoo
+# call the function woohoo
 if __name__ == "__main__":
   main()
