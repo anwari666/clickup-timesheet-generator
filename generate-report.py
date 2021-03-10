@@ -1,68 +1,48 @@
 from decouple import config
 import os
-import time
-import datetime
 import json
 import requests
 import pandas as pd 
 import numpy as np
 
+import utilities as util
 
-TEAM_ID = config('team_id')
+API_ENDPOINT = config('API_ENDPOINT')
+API_KEY   = config('API_KEY')
 
-ANWARI_ID = config('anwari_id')
-RAQUEL_ID = config('raquel_id')
+TEAM_ID   = config('TEAM_ID')
+ANWARI_ID = config('ANWARI_ID')
+RAQUEL_ID = config('RAQUEL_ID')
+TIAGO_ID  = config('TIAGO_ID')
 
 persons = {
   '1': ANWARI_ID,
-  '2': RAQUEL_ID
+  '2': RAQUEL_ID,
+  '3': TIAGO_ID
 }
 
-# dates in format YYYY-MM-DD
-start = input("Start date in YYYY-MM-DD: ") # since early dec
-end = input("End date (defaults to today): ") # string or None
-assignee = input("Who?\n1: anwari \n2: raquel\n")
-
-
-def get_end_date( ts_ms ):
-  return datetime.datetime.fromtimestamp( ts_ms/1000 ).strftime('%Y-%m-%d')
-
-def get_end_tsm( s ) :
-  if s == '' :
-    # check for the end of day
-    return int( datetime.datetime.now().replace(hour=23, minute=59, second=59, microsecond=0).timestamp() * 1000) 
-  else :
-    return int( datetime.datetime.strptime( s, '%Y-%m-%d').replace(hour=23, minute=59, second=59, microsecond=0).timestamp() * 1000 )
-
-def str_to_tsm( s ):
-  tt = datetime.datetime.strptime( s, '%Y-%m-%d').timetuple()
-  return int( time.mktime( tt ) ) * 1000
-
-def tsm_to_human( ts_ms ):
-  return datetime.datetime.fromtimestamp( ts_ms /1000 ).strftime('%b %d')
-
-
-start_ts = str_to_tsm( start )
-end_ts = get_end_tsm( end )
-
-# print(f"end: {end_ts}")
 
 columns_time_entries = [  'task_id', 'task_name',
                           'time_id', 'time_start', 'time_end', 'time_duration', 
                           'user_id', 'user_name']
 
 
-api_endpoint = "https://api.clickup.com/api/v2/"
-
-
-api_time_entries = f"{api_endpoint}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
-api_task = f"{api_endpoint}task/"
-
-API_KEY = config('API_KEY')
-headers = {"Authorization": API_KEY }
-
 
 def main() :
+
+  # dates in format YYYY-MM-DD
+  start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
+  end = input("Until when? (defaults to today): ") # string or None
+  assignee = input("Generate whose report?\n  1: Anwari \n  2: Raquel\n  3: Tiago\nPick one: ")
+
+  start_ts = util.str_to_timestamp( start )
+  end_ts = util.get_eod_timestamp( end )
+
+  api_time_entries = f"{API_ENDPOINT}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
+  api_task = f"{API_ENDPOINT}task/"
+
+
+  headers = {"Authorization": API_KEY }
 
   try:
     # read time_entries from API
@@ -104,7 +84,8 @@ def main() :
 
     # append new row
     time_entries_rows.append([  time_entry['task']['id'], time_entry['task']['name'],
-                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
+                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), 
+                                pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
                                 time_entry['user']['id'], time_entry['user']['username'] ] )
 
   # create new dataframe
@@ -141,7 +122,6 @@ def main() :
   #   tasks_r_file.close()
 
 
-
   # create lists dataframe
   lists_df = pd.DataFrame([ [ tasks[task]['list']['id'],
                               tasks[task]['list']['name'], 
@@ -160,7 +140,7 @@ def main() :
   for username, user_frame in grouped_by_user :
 
 
-    # --> INSERT SCRIPT u/ DIVIDE BETWEEN USERS HERE <--
+    # --> INSERT SCRIPT to DIVIDE BETWEEN USERS HERE <--
     total_time = user_frame['time_duration'].sum()
     total_hour = total_time / (3600*1000)
     ten_percent = total_time * 0.1
@@ -181,21 +161,22 @@ def main() :
 
     # export to CSV
     # todo: export per person.
-    tasks_filename = f"{username} - tasks { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    tasks_filename = f"{username} - tasks { util.timestamp_to_human( start_ts ) } - { util.timestamp_to_human( end_ts) }.csv"
     tasks_group['hours'].sum().rename_axis(['Project', 'Task']).reset_index().to_csv(f"./report/{ tasks_filename }")
     print( f"\nThe detailed tasks have been saved to: { tasks_filename }" )
 
 
 
     # fill user_frame with missing dates
-    missing_dates = pd.date_range( start, get_end_date( end_ts) )
+    missing_dates = pd.date_range( start, util.get_end_date( end_ts) )
 
     missing_str = [ 'test' for _ in range(len(missing_dates)) ]
     missing_num = [ 0 for _ in range(len(missing_dates)) ]
     missing_empty = [ 0 for _ in range(len(missing_dates)) ]
 
     missing_df = pd.DataFrame({ 'task_id': missing_str, 'task_name': missing_str,
-                            'time_id': missing_str, 'time_start': missing_dates, 'time_end': missing_dates, 'time_duration': missing_num, 
+                            'time_id': missing_str, 'time_start': missing_dates, 
+                            'time_end': missing_dates, 'time_duration': missing_num, 
                             'list_id': missing_str, 'list_name': missing_empty,
                             'user_id': missing_str, 'user_name': missing_str, 'hours': missing_empty})
     
@@ -206,7 +187,7 @@ def main() :
     # print( full_frame.tail(20) )
     timesheet_df = pd.pivot_table(full_frame, index=['list_name'], margins=True, margins_name='Total', columns='time_start', values=['hours'], aggfunc=[np.sum], fill_value='')
 
-    timesheet_filename = f"{ username } - timesheet { tsm_to_human( start_ts )} - {tsm_to_human( end_ts)}.csv"
+    timesheet_filename = f"{ username } - timesheet { util.timestamp_to_human( start_ts ) } - { util.timestamp_to_human( end_ts) }.csv"
     # timesheet_df.loc['Total'] = timesheet_df.sum(numeric_only=True, axis=0)
 
     timesheet_df.to_csv(f"./report/{ timesheet_filename }")
@@ -217,6 +198,6 @@ def main() :
 
 
 
-# call the thingy woohoo
+# call the function woohoo
 if __name__ == "__main__":
   main()
