@@ -6,14 +6,18 @@ import pandas as pd
 import numpy as np
 
 import utilities as util
+# import pytz
 
-API_ENDPOINT = config('API_ENDPOINT')
-API_KEY   = config('API_KEY')
+
+API_ENDPOINT  = config('API_ENDPOINT')
+API_KEY       = config('API_KEY')
 
 TEAM_ID   = config('TEAM_ID')
 ANWARI_ID = config('ANWARI_ID')
 RAQUEL_ID = config('RAQUEL_ID')
 TIAGO_ID  = config('TIAGO_ID')
+
+TIMEZONE  = config('TIMEZONE')
 
 persons = {
   '1': ANWARI_ID,
@@ -25,7 +29,6 @@ persons = {
 columns_time_entries = [  'task_id', 'task_name',
                           'time_id', 'time_start', 'time_end', 'time_duration', 
                           'user_id', 'user_name']
-
 
 
 def main() :
@@ -83,15 +86,17 @@ def main() :
     tasks[time_entry['task']['id']] = None
 
     # append new row
-    time_entries_rows.append([  time_entry['task']['id'], time_entry['task']['name'],
-                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), 
-                                pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
-                                time_entry['user']['id'], time_entry['user']['username'] ] )
+    time_entries_rows.append([  time_entry['task']['id'], 
+                                time_entry['task']['name'],
+                                time_entry['id'],         
+                                pd.to_datetime(time_entry['start'], unit='ms', utc=True).tz_convert( TIMEZONE ), 
+                                pd.to_datetime(time_entry['end'], unit='ms', utc=True).tz_convert( TIMEZONE ), 
+                                int(time_entry['duration']),
+                                time_entry['user']['id'], 
+                                time_entry['user']['username'] ] )
 
   # create new dataframe
   time_entries_df = pd.DataFrame(time_entries_rows, columns=columns_time_entries)
-
-  # print( time_entries_df )
 
   print( f"Found in { len(tasks) } tasks." )
 
@@ -168,7 +173,7 @@ def main() :
 
 
     # fill user_frame with missing dates
-    missing_dates = pd.date_range( start, util.get_end_date( end_ts) )
+    missing_dates = pd.date_range( start, util.get_end_date( end_ts), tz=TIMEZONE )
 
     missing_str = [ 'test' for _ in range(len(missing_dates)) ]
     missing_num = [ 0 for _ in range(len(missing_dates)) ]
