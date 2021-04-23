@@ -7,38 +7,80 @@ import numpy as np
 
 import utilities as util
 
-API_ENDPOINT = config('API_ENDPOINT')
-API_KEY   = config('API_KEY')
 
-TEAM_ID   = config('TEAM_ID')
-ANWARI_ID = config('ANWARI_ID')
-RAQUEL_ID = config('RAQUEL_ID')
-TIAGO_ID  = config('TIAGO_ID')
-
-persons = {
-  '1': ANWARI_ID,
-  '2': RAQUEL_ID,
-  '3': TIAGO_ID
-}
+API_ENDPOINT  = "https://api.clickup.com/api/v2/"
+API_KEY       = config('API_KEY')
+TEAM_ID       = config('TEAM_ID')
+TIMEZONE      = config('TIMEZONE')
 
 
 columns_time_entries = [  'task_id', 'task_name',
                           'time_id', 'time_start', 'time_end', 'time_duration', 
                           'user_id', 'user_name']
 
+def get_members( team ) :
+  """
+  Function to parse members inside a team's JSON
+  """
+  members = [ { 'id': member['user']['id'], 'username': member['user']['username'] } for member in team['members'] ]
+  return members
+
+
+def get_team_members( ) :
+  """
+  Function to get all available team members
+  @param team_id
+  @return array of tuple [id, name]
+  """
+
+  api_team = f"{API_ENDPOINT}team"
+  headers = {"Authorization": API_KEY }
+
+  try:
+    r = requests.get(api_team, headers=headers)
+
+  except:
+    print('error konek ke team coi')
+
+  # write file for the first time
+  teams = None
+
+  if (r.status_code == 200):
+    teams = r.json()['teams']
+    
+    return get_members( teams[0] )
+    # if ( len(teams) == 1 ) :
+    # else, choose team first.
+
+
+  else:
+    print( 'Response gagal. Status:', r.status_code )
+
 
 
 def main() :
-
+  """
+  Function main
+  the actual function to invoke for the first time
+  """
   # dates in format YYYY-MM-DD
   start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
   end = input("Until when? (defaults to today): ") # string or None
-  assignee = input("Generate whose report?\n  1: Anwari \n  2: Raquel\n  3: Tiago\nPick one: ")
+  members = get_team_members( )
+  
+  print("Generate whose report?")
+  for i, member in enumerate(members, start=1):
+    print( f"{i}: {member['username']}" )
+  
+  chosen_member = input("Pick one (defaults to everyone if left empty): ")
+  # assignee accepts empty string, but defaults to API_KEY holder
+  # it accepts list of ids too, which is the intended 
+  assignee = members[(int(chosen_member) - 1)]['id'] if chosen_member else ",".join([ str(member['id']) for member in members])
 
   start_ts = util.str_to_timestamp( start )
   end_ts = util.get_eod_timestamp( end )
 
-  api_time_entries = f"{API_ENDPOINT}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={persons[assignee]}"
+  api_time_entries = f"{API_ENDPOINT}team/{TEAM_ID}/time_entries?start_date={start_ts-1}&end_date={end_ts}&assignee={assignee}"
   api_task = f"{API_ENDPOINT}task/"
 
 
@@ -83,15 +125,17 @@ def main() :
     tasks[time_entry['task']['id']] = None
 
     # append new row
-    time_entries_rows.append([  time_entry['task']['id'], time_entry['task']['name'],
-                                time_entry['id'],         pd.to_datetime(time_entry['start'], unit='ms'), 
-                                pd.to_datetime(time_entry['end'], unit='ms'), int(time_entry['duration']),
-                                time_entry['user']['id'], time_entry['user']['username'] ] )
+    time_entries_rows.append([  time_entry['task']['id'], 
+                                time_entry['task']['name'],
+                                time_entry['id'],         
+                                pd.to_datetime(time_entry['start'], unit='ms', utc=True).tz_convert( TIMEZONE ), 
+                                pd.to_datetime(time_entry['end'], unit='ms', utc=True).tz_convert( TIMEZONE ), 
+                                int(time_entry['duration']),
+                                time_entry['user']['id'], 
+                                time_entry['user']['username'] ] )
 
   # create new dataframe
   time_entries_df = pd.DataFrame(time_entries_rows, columns=columns_time_entries)
-
-  # print( time_entries_df )
 
   print( f"Found in { len(tasks) } tasks." )
 
@@ -168,7 +212,7 @@ def main() :
 
 
     # fill user_frame with missing dates
-    missing_dates = pd.date_range( start, util.get_end_date( end_ts) )
+    missing_dates = pd.date_range( start, util.get_end_date( end_ts), tz=TIMEZONE )
 
     missing_str = [ 'test' for _ in range(len(missing_dates)) ]
     missing_num = [ 0 for _ in range(len(missing_dates)) ]
