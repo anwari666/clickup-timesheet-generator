@@ -4,7 +4,6 @@ import json
 import requests
 import pandas as pd 
 import numpy as np
-
 import utilities as util
 
 
@@ -64,11 +63,13 @@ def main() :
   the actual function to invoke for the first time
   """
   # dates in format YYYY-MM-DD
+  print("Clickup timesheet report generator  -  Because having to create timesheet report manually sucks. Big time.")
+  print("===")
   start = input("Begin since when? (in YYYY-MM-DD): ") # since early dec
   end = input("Until when? (defaults to today): ") # string or None
   members = get_team_members( )
   
-  print("Generate whose report?")
+  print("===\nGenerate whose report?")
   for i, member in enumerate(members, start=1):
     print( f"{i}: {member['username']}" )
   
@@ -101,7 +102,7 @@ def main() :
     time_entries = r.json()
     f.write( r.text )
     f.close()
-    print( f"There are { len(time_entries['data']) } time logs." )
+    print( f"===\nThere are { len(time_entries['data']) } time logs found for the given time range." )
 
 
   else:
@@ -192,7 +193,7 @@ def main() :
     tasks_group = user_frame.groupby(['list_name', 'task_name'])
 
 
-    print( f"\n\n\n>>>>>>> { username } " )
+    print( f"\n\n\n>>>>>>> { username.upper() } " )
     print( "====== TASKS ======" )
 
     # print one by one huvt
