@@ -134,7 +134,7 @@ def main() :
 
   for time_entry in time_entries['data'] :
     # populate the tasks object
-    tasks[time_entry['task']['id']] = None
+    tasks[time_entry['task']['id']] = time_entry['task']['name']
 
     # append new row
     time_entries_rows.append([  time_entry['task']['id'], 
@@ -157,7 +157,7 @@ def main() :
   i = 0
   for task_id in tasks.keys() :
 
-    print(f"> {str(i+1).rjust(3)}/{len(tasks)} | Fetching info about task {task_id}")
+    print(f"> {str(i+1).rjust(3)}/{len(tasks)} | Fetching info about task {task_id}: {tasks[task_id]}")
 
     t = requests.get(f"{api_task}{task_id}", headers=headers)
     tasks[task_id] = t.json()
