@@ -1,6 +1,4 @@
 __pycache__
-report/*
-data/*
+report/**
+data/**
 .env
-tasks.json
-time_entries.json

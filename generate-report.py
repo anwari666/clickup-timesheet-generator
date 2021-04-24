@@ -56,6 +56,13 @@ def get_team_members( ) :
     print( 'Response gagal. Status:', r.status_code )
 
 
+def create_folder( path ):
+  """
+  Create folder at path if not exist
+  """
+  if not os.path.exists( path ) :
+    os.makedirs( path )
+
 
 def main() :
   """
@@ -73,7 +80,7 @@ def main() :
   for i, member in enumerate(members, start=1):
     print( f"{i}: {member['username']}" )
   
-  chosen_member = input("Pick one (defaults to everyone if left empty): ")
+  chosen_member = input("Choose one (or just hit enter to choose everyone): ")
   # assignee accepts empty string, but defaults to API_KEY holder
   # it accepts list of ids too, which is the intended 
   assignee = members[(int(chosen_member) - 1)]['id'] if chosen_member else ",".join([ str(member['id']) for member in members])
@@ -98,7 +105,11 @@ def main() :
   time_entries = None
 
   if (r.status_code == 200):
-    f = open('./time_entries.json', 'w')
+    
+    create_folder('data')
+    create_folder('report')
+
+    f = open('./data/time_entries.json', 'w')
     time_entries = r.json()
     f.write( r.text )
     f.close()
@@ -110,7 +121,7 @@ def main() :
 
 
   # # read time entries from file
-  # f = open('./time_entries.json', 'r')
+  # f = open('./data/time_entries.json', 'r')
   # time_entries = json.load(f)
   # f.close()
   # # print(time_entries)
@@ -155,14 +166,14 @@ def main() :
 
   # ====
   # woohoo got the list's details here. We can work on something, finally.
-  with open('./tasks.json', 'w') as tasks_file :
+  with open('./data/tasks.json', 'w') as tasks_file :
     # write the file
     json.dump(tasks, tasks_file)
     tasks_file.close()
 
 
   # # read tasks from file instead of API
-  # with open('./tasks.json', 'r') as tasks_r_file :
+  # with open('./data/tasks.json', 'r') as tasks_r_file :
   #   tasks = json.load( tasks_r_file )
   #   tasks_r_file.close()
 
