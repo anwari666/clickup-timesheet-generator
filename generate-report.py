@@ -47,6 +47,10 @@ def get_team_members( ) :
   if (r.status_code == 200):
     teams = r.json()['teams']
     
+    if ( len(teams) == 1 ):
+      global TEAM_ID 
+      TEAM_ID = teams[0]['id']
+
     return get_members( teams[0] )
     # if ( len(teams) == 1 ) :
     # else, choose team first.
