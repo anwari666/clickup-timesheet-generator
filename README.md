@@ -5,11 +5,10 @@ This little script is made during my tenure at a consultation company. They requ
 
 ## Installation & running
 
-Just clone the repository, and:
+1. Clone the repository: `git clone https://github.com/anwari666/clickup-timesheet-generator.git`
+2. Install the requirements: `pip install -r requirements.txt`
+3. Rename the `example.env` to `.env`
+4. Grab your Clickup API key by going to Settings > Apps and then click Generate. Put it inside the `.env`
+5. Run the script: `python generate-report.py`
 
-```bash
-pip install -r requirements.txt
-python generate-report.py
-```
-
-Tested on Mac. Can't say it's working on Windows...
+Tested on Mac. Not 100% sure if it's working on Windows...
